@@ -64,7 +64,7 @@ The International Name challenge in Lesson 2 where you'll create a function that
 */
 $(document).ready(function() {
   $('button').click(function() {
-    var iName = inName(name) || function(){};
+    var iName = inName(bio.name) || function(){};
     $('#name').html(iName);  
   });
 });
@@ -85,7 +85,10 @@ function logClicks(x,y) {
 }
 
 $(document).click(function(loc) {
-  // your code goes here!
+  var x = loc.pageX;
+  var y = loc.pageY;
+
+  logClicks(x, y);
 });
 
 
@@ -104,7 +107,7 @@ Start here! initializeMap() is called when page is loaded.
 function initializeMap() {
 
   var locations;
-
+  var infoWindow;
   var mapOptions = {
     disableDefaultUI: true
   };
@@ -122,20 +125,33 @@ function initializeMap() {
 
     // initializes an empty array
     var locations = [];
+    var locationSite = {};
 
     // adds the single location property from bio to the locations array
-    locations.push(bio.contacts.location);
+    locationSite = {
+        "location" : bio.contacts.location,
+        "locationDesc" : "I lived here."
+    };
+    locations.push(locationSite);
 
     // iterates through school locations and appends each location to
     // the locations array
-    for (var school in education.schools) {
-      locations.push(education.schools[school].location);
+    for (school in education.schools) {
+      locationSite = {
+          "location" : education.schools[school].location,
+          "locationDesc" : "I went to school at "+ education.schools[school].name + " from " + education.schools[school].datesAttended + "."
+      };
+      locations.push(locationSite);
     }
 
     // iterates through work locations and appends each location to
     // the locations array
-    for (var job in work.jobs) {
-      locations.push(work.jobs[job].location);
+    for (job in work.jobs) {
+      locationSite = {
+          "location" : work.jobs[job].location,
+          "locationDesc" : "I worked at "+ work.jobs[job].employer + " from " + work.jobs[job].datesWorked + "."
+      };
+      locations.push(locationSite);
     }
 
     return locations;
@@ -150,27 +166,29 @@ function initializeMap() {
 
     // The next lines save location data from the search result object to local variables
     var lat = placeData.geometry.location.k;  // latitude from the place service
-    var lon = placeData.geometry.location.B;  // longitude from the place service
+    var lon = placeData.geometry.location.D;  // longitude from the place service
     var name = placeData.formatted_address;   // name of the place from the place service
     var bounds = window.mapBounds;            // current boundaries of the map window
+    var image = "images/colors.png";
 
     // marker is an object with additional data about the pin for a single location
     var marker = new google.maps.Marker({
       map: map,
       position: placeData.geometry.location,
-      title: name
+      title: name,
+      icon: image
     });
 
     // infoWindows are the little helper windows that open when you click
     // or hover over a pin on a map. They usually contain more information
     // about a location.
-    var infoWindow = new google.maps.InfoWindow({
+    infoWindow = new google.maps.InfoWindow({
       content: name
     });
 
-    // hmmmm, I wonder what this is about...
+    // opens an infoWindow when a marker on the map is clicked
     google.maps.event.addListener(marker, 'click', function() {
-      // your code goes here!
+      infoWindow.open(map,marker);
     });
 
     // this is where the pin actually gets added to the map.
@@ -207,7 +225,7 @@ function initializeMap() {
 
       // the search request object
       var request = {
-        query: locations[place]
+        query: locations[place].location
       };
 
       // Actually searches the Google Maps API for location data and runs the callback
@@ -215,6 +233,78 @@ function initializeMap() {
       service.textSearch(request, callback);
     }
   }
+
+  /*
+  pinPoster2(locations) takes in the array of locations created by locationFinder()
+  and fires off Google geocoder to find lat, long for address.  
+  */
+  function pinPoster2(locations) {
+    var geocoder = new google.maps.Geocoder();
+    var i=0;
+
+      for (var counter in locations) {
+      var locationObj = locations[counter];
+      //geocoder will first loop through the list of address to find location data and once
+      //done will execute the callback fuction
+      geocoder.geocode({ 'address': locationObj.location }, function (results, status) {
+        if (status == google.maps.GeocoderStatus.OK) {
+          createMapMarker2( results[0], locations[i] );
+          i++; 
+        } 
+      });
+    }
+  } 
+
+
+  /*
+  createMapMarker2(geocoderObj, locationObj) uses Google's Geocoder to get details
+  of a given address and uses that address to create map pins. createMapMarker2 will allow 
+  custom data to be added to the infoWindow of the map marker.
+  */
+  function createMapMarker2(geocoderObj, locationObj) {
+
+    // The next lines save location data from the search result object to local variables
+    var lat = geocoderObj.geometry.location.lat();  // latitude from the place service
+    var lon = geocoderObj.geometry.location.lng();  // longitude from the place service
+    var name = locationObj.location;   // name of the place from the place service
+    var locationDescription = locationObj.locationDesc;
+    var bounds = window.mapBounds;            // current boundaries of the map window
+    var image = "images/colors.png";
+
+    // marker is an object with additional data about the pin for a single location
+    var marker = new google.maps.Marker({
+      map: map,
+      position: geocoderObj.geometry.location,
+      title: name,
+      icon: image
+    });
+
+    // infoWindows are the little helper windows that open when you click
+    // or hover over a pin on a map. They usually contain more information
+    // about a location.
+    var infoWindow = new google.maps.InfoWindow({
+      content: locationDescription
+    });
+
+    // opens an infoWindow when a marker on the map is clicked
+    google.maps.event.addListener(marker, 'click', function() {
+      infoWindow.open(map,marker);
+    });
+
+    // this is where the pin actually gets added to the map.
+    // bounds.extend() takes in a map location object
+    bounds.extend(new google.maps.LatLng(lat, lon));
+    // fit the map to the new marker
+    map.fitBounds(bounds);
+    // center the map
+    map.setCenter(bounds.getCenter());
+  }
+
+
+
+
+
+
 
   // Sets the boundaries of the map based on pin locations
   window.mapBounds = new google.maps.LatLngBounds();
@@ -224,7 +314,7 @@ function initializeMap() {
 
   // pinPoster(locations) creates pins on the map for each location in
   // the locations array
-  pinPoster(locations);
+  pinPoster2(locations);
 
 }
 
@@ -232,12 +322,12 @@ function initializeMap() {
 Uncomment the code below when you're ready to implement a Google Map!
 */
 
-// Calls the initializeMap() function when the page loads
-//window.addEventListener('load', initializeMap);
+//Calls the initializeMap() function when the page loads
+window.addEventListener('load', initializeMap);
 
 // Vanilla JS way to listen for resizing of the window
 // and adjust map bounds
-//window.addEventListener('resize', function(e) {
+window.addEventListener('resize', function(e) {
   // Make sure the map bounds get updated on page resize
-//  map.fitBounds(mapBounds);
-//});
+  map.fitBounds(mapBounds);
+});
